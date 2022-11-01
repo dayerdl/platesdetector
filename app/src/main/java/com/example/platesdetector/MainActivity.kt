@@ -90,7 +90,7 @@ class MainActivity : Activity(), CvCameraViewListener2 {
 
     override fun onCameraFrame(inputFrame: CvCameraViewFrame): Mat {
         mRgba = inputFrame.rgba()
-        CirclesDetector.drawBoxesOnTheImage(mRgba!!)
+        CirclesDetector.drawBoxesOnTheImage2(mRgba!!)
         return mRgba!!
     }
 
