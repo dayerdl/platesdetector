@@ -50,21 +50,31 @@ object CirclesDetector {
     fun drawBoxesOnTheImage2(img: Mat) {
         val gray = Mat()
         val blur = Mat()
-        val binary = Mat()
+        val thresh = Mat()
         Imgproc.cvtColor(img, gray, Imgproc.COLOR_BGR2GRAY)
         Imgproc.medianBlur(gray, blur, 11)
-        Imgproc.threshold(blur, binary, 0.0, 255.0, Imgproc.THRESH_BINARY + Imgproc.THRESH_OTSU)
-        val hierarchy = Mat()
+        Imgproc.threshold(blur, thresh, 0.0, 255.0, Imgproc.THRESH_BINARY + Imgproc.THRESH_OTSU)
 
+        val opening = Mat()
+        val kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, Size(5.0,5.0))
+        Imgproc.morphologyEx(thresh, opening, Imgproc.MORPH_OPEN, kernel)
+
+        val hierarchy = Mat()
         val contours = arrayListOf<MatOfPoint>()
 
         Imgproc.findContours(
-            binary,
+            opening,
             contours,
             hierarchy,
             Imgproc.RETR_EXTERNAL,
             Imgproc.CHAIN_APPROX_SIMPLE
         )
+
+        if(contours.size == 0) {
+            return
+        } else {
+            println("ZAXA Contours found! ${contours.size}")
+        }
 
         var cnts = contours[0].toArray()
 
@@ -75,6 +85,9 @@ object CirclesDetector {
         for (c in cnts) {
             val matOfPoint = MatOfPoint2f(c)
             val peri = Imgproc.arcLength(matOfPoint, true)
+            if (peri > 0) {
+                println("ZAXA peri $peri")
+            }
             val approx = MatOfPoint2f()
             val area = Imgproc.contourArea(matOfPoint)
             Imgproc.approxPolyDP(matOfPoint, approx, 0.04 * peri, true)

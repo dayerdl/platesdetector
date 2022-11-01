@@ -5593,7 +5593,7 @@ public class Imgproc {
      * @param type thresholding type (see #ThresholdTypes).
      * @return the computed threshold value if Otsu's or Triangle methods used.
      *
-     * SEE:  adaptiveThreshold, findContours, compare, min, max
+     * SEE:  adaptiveThreshold, finxdContours, compare, min, max
      */
     public static double threshold(Mat src, Mat dst, double thresh, double maxval, int type) {
         return threshold_0(src.nativeObj, dst.nativeObj, thresh, maxval, type);
