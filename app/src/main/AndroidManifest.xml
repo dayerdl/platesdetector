@@ -14,7 +14,7 @@
         android:theme="@style/Theme.PlatesDetector"
         tools:targetApi="31">
         <activity
-            android:name="org.tensorflow.lite.examples.poseestimation.MainActivity"
+            android:name="poseestimation.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.PlatesDetector.NoActionBar">

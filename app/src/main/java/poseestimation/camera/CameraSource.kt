@@ -271,6 +271,8 @@ class CameraSource(
 
     private fun visualize(persons: List<Person>, bitmap: Bitmap) {
 
+        println("ZAXA visualize points ${persons.size}")
+
         val outputBitmap = VisualizationUtils.drawBodyKeypoints(
             bitmap,
             persons.filter { it.score > MIN_CONFIDENCE }, isTrackerEnabled
@@ -300,10 +302,10 @@ class CameraSource(
             val right: Int = left + screenWidth
             val bottom: Int = top + screenHeight
 
-            canvas.drawBitmap(
-                outputBitmap, Rect(0, 0, outputBitmap.width, outputBitmap.height),
-                Rect(left, top, right, bottom), null
-            )
+            val rectSrc = Rect(0, 0, outputBitmap.width, outputBitmap.height)
+            val rectDest = Rect(left, top, right, bottom)
+            canvas.drawBitmap(outputBitmap, rectSrc, rectDest, null)
+            println("ZAXA painting....")
             surfaceView.holder.unlockCanvasAndPost(canvas)
         }
     }
