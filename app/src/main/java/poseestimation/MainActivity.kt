@@ -24,9 +24,11 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Rect
+import android.graphics.drawable.BitmapDrawable
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
 import android.os.Process
 import android.util.Log
 import android.view.SurfaceHolder
@@ -56,6 +58,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import kotlin.math.max
 
 
 class MainActivity : AppCompatActivity() {
@@ -65,6 +68,8 @@ class MainActivity : AppCompatActivity() {
 
     /** A [SurfaceView] for camera preview.   */
     private lateinit var surfaceView: SurfaceView
+
+    private lateinit var testView: View
 
     /** Default pose estimation model is 1 (MoveNet Thunder)
      * 0 == MoveNet Lightning model
@@ -150,7 +155,7 @@ class MainActivity : AppCompatActivity() {
             isPoseClassifier()
         }
 
-    lateinit var videoSurface : SurfaceHolder
+    lateinit var videoSurface: SurfaceHolder
     lateinit var videoPlayer: MediaPlayer
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -182,24 +187,26 @@ class MainActivity : AppCompatActivity() {
         super.onStart()
 
         if (!OpenCVLoader.initDebug()) {
-            Log.d("OpenCV", "Internal OpenCV library not found. Using OpenCV Manager for initialization");
+            Log.d(
+                "OpenCV",
+                "Internal OpenCV library not found. Using OpenCV Manager for initialization"
+            );
             OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION, this, mLoaderCallback);
         } else {
             Log.d("OpenCV", "OpenCV library found inside package. Using it!");
             mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
         }
 
-        surfaceView.holder.addCallback(object : SurfaceHolder.Callback{
+        surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
-                processVideo()
+                openCamera()
+//                processVideo()
             }
 
             override fun surfaceChanged(p0: SurfaceHolder, p1: Int, p2: Int, p3: Int) {
-                println("ZAXA surface changed ")
             }
 
             override fun surfaceDestroyed(p0: SurfaceHolder) {
-                println("ZAXA surface destroyed ")
             }
 
         })
@@ -232,48 +239,55 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openFileByOpenCV(absFilePath: String) {
-        val videoCapture = VideoCapture(absFilePath)
 
-        val mat = Mat()
-        var readVideo = true
-        if(videoCapture.isOpened) {
-            while (videoCapture.read(mat) && readVideo) {
-                val bmp = Bitmap.createBitmap(mat.width(), mat.height(), Bitmap.Config.ARGB_8888)
-                Utils.matToBitmap(mat, bmp)
+        Thread {
+            try {
+                val videoCapture = VideoCapture(absFilePath)
+                val mat = Mat()
+                var readVideo = true
+                var bmp: Bitmap? = null
+                var lastFramTimestamp = System.currentTimeMillis()
+                val videoFrameRate = 30
+                val oneFrameShouldTake = 1000 / videoFrameRate
 
-                val rotateMatrix = Matrix()
-                rotateMatrix.postRotate(90.0f)
+                if (videoCapture.isOpened) {
+                    println("Time init ${System.currentTimeMillis()}")
+                    while (videoCapture.read(mat) && readVideo) {
+                        val diff = System.currentTimeMillis() - lastFramTimestamp
+                        lastFramTimestamp = System.currentTimeMillis()
 
-                val rotatedBitmap = Bitmap.createBitmap(
-                    bmp, 0, 0, mat.width(), mat.height(),
-                    rotateMatrix, false
-                )
+                        runOnUiThread {
+                            if (bmp == null) {
+                                bmp = Bitmap.createBitmap(
+                                    mat.width(),
+                                    mat.height(),
+                                    Bitmap.Config.ARGB_8888
+                                )
+                            }
 
-                println("ZAXA Painting on view")
-//                     cameraSource?.processImage(rotatedBitmap)
+                            Utils.matToBitmap(mat, bmp)
 
-//                    val bd = BitmapDrawable(this.resources, rotatedBitmap)
-//                    videoView.background = bd
-//                    videoView.invalidate()
-//                    readVideo = false
+                            val rotateMatrix = Matrix()
+                            rotateMatrix.postRotate(90.0f)
 
-                rotatedBitmap?.let {
-                    surfaceView.setWillNotDraw(false)
-                    val canvas = surfaceView.holder.lockCanvas()
-                    val destRect = Rect(0, 0, canvas.width, canvas.height)
-                    canvas.let {
-                        println("ZAXA painting on the canvas")
-                        it.drawBitmap(rotatedBitmap, null, destRect, null)
-                        surfaceView.holder.unlockCanvasAndPost(canvas)
-                        readVideo = false
+                            val rotatedBitmap = Bitmap.createBitmap(
+                                bmp!!, 0, 0, mat.width(), mat.height(),
+                                rotateMatrix, false
+                            )
+
+                            cameraSource?.processImage(rotatedBitmap)
+                        }
+
+                        Thread.sleep(max(0, oneFrameShouldTake - diff))
                     }
+
+                    videoCapture.release()
                 }
-
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
+        }.start()
 
-            Toast.makeText(this, "OpenCV worked", Toast.LENGTH_LONG).show()
-        }
-        videoCapture.release()
     }
 
 
@@ -354,9 +368,7 @@ class MainActivity : AppCompatActivity() {
                         prepareCamera()
                     }
                 isPoseClassifier()
-                lifecycleScope.launch(Dispatchers.Main) {
-                    cameraSource?.initCamera()
-                }
+                processVideo()
             }
             createPoseEstimator()
         }

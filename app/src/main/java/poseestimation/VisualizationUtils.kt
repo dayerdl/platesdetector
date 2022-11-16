@@ -21,7 +21,9 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import org.tensorflow.lite.examples.poseestimation.data.BodyPart
+import org.tensorflow.lite.examples.poseestimation.data.KeyPoint
 import org.tensorflow.lite.examples.poseestimation.data.Person
+import poseestimation.tracker.DirectionTracker
 import kotlin.math.max
 
 object VisualizationUtils {
@@ -36,6 +38,8 @@ object VisualizationUtils {
 
     /** Distance from person id to the nose keypoint.  */
     private const val PERSON_ID_MARGIN = 6f
+
+    private val directionTracker = DirectionTracker()
 
     /** Pair of keypoints to draw lines between.  */
     private val bodyJoints = listOf(
@@ -65,7 +69,9 @@ object VisualizationUtils {
         persons: List<Person>,
         isTrackerEnabled: Boolean = false
     ): Bitmap {
-        val paintCircle = Paint().apply {
+//        println("ZAXA Drawing keypoints, number of people: ${persons.size}")
+
+        var paintCircle = Paint().apply {
             strokeWidth = CIRCLE_RADIUS
             color = Color.RED
             style = Paint.Style.FILL
@@ -107,6 +113,19 @@ object VisualizationUtils {
             }
 
             person.keyPoints.forEach { point ->
+                val shoulder: KeyPoint =
+                    if (person.nose().coordinate.x > person.hip().coordinate.x) {
+                        person.rightShoulder()
+                    } else {
+                        person.keyPoints.first { it.bodyPart == BodyPart.LEFT_SHOULDER }
+                    }
+                if (point.bodyPart == shoulder.bodyPart) {
+                    paintDirection(point, originalSizeCanvas)
+                    paintCircle.color = Color.GREEN
+                } else {
+                    paintCircle.color = Color.RED
+                }
+
                 originalSizeCanvas.drawCircle(
                     point.coordinate.x,
                     point.coordinate.y,
@@ -117,4 +136,49 @@ object VisualizationUtils {
         }
         return output
     }
+
+    private fun paintDirection(point: KeyPoint, originalSizeCanvas: Canvas) {
+        //detect if looking to the right or to the left
+        val paintText = Paint().apply {
+            strokeWidth = CIRCLE_RADIUS
+            color = Color.GREEN
+            style = Paint.Style.FILL
+        }
+        paintText.textSize = 60f
+
+        val direction = directionTracker.calculateDirection(point.coordinate)
+        println("ZAXA direction $direction")
+        when (direction) {
+            DirectionTracker.DIRECTION.UP -> originalSizeCanvas.drawText(
+                "UP",
+                100f,
+                100f,
+                paintText
+            )
+            DirectionTracker.DIRECTION.DOWN -> originalSizeCanvas.drawText(
+                "DOWN",
+                100f,
+                100f,
+                paintText
+            )
+            DirectionTracker.DIRECTION.NOT_MOVING -> originalSizeCanvas.drawText(
+                "",
+                100f,
+                100f,
+                paintText
+            )
+        }
+    }
+}
+
+private fun Person.rightShoulder(): KeyPoint {
+    return keyPoints.first { it.bodyPart == BodyPart.RIGHT_SHOULDER }
+}
+
+private fun Person.hip(): KeyPoint {
+    return keyPoints.first { it.bodyPart == BodyPart.LEFT_HIP }
+}
+
+private fun Person.nose(): KeyPoint {
+    return keyPoints.first { it.bodyPart == BodyPart.NOSE }
 }

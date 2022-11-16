@@ -73,7 +73,6 @@ object CirclesDetector {
         if(contours.size == 0) {
             return
         } else {
-            println("ZAXA Contours found! ${contours.size}")
         }
 
         var cnts = contours[0].toArray()
@@ -86,7 +85,6 @@ object CirclesDetector {
             val matOfPoint = MatOfPoint2f(c)
             val peri = Imgproc.arcLength(matOfPoint, true)
             if (peri > 0) {
-                println("ZAXA peri $peri")
             }
             val approx = MatOfPoint2f()
             val area = Imgproc.contourArea(matOfPoint)
