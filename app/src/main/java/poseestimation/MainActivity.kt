@@ -14,16 +14,16 @@ limitations under the License.
 ==============================================================================
 */
 
-package org.tensorflow.lite.examples.poseestimation
+package poseestimation
 
 import android.Manifest
-import android.R.attr.height
-import android.R.attr.width
 import android.app.AlertDialog
 import android.app.Dialog
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Matrix
+import android.graphics.Rect
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
@@ -47,11 +47,7 @@ import org.opencv.android.BaseLoaderCallback
 import org.opencv.android.LoaderCallbackInterface
 import org.opencv.android.OpenCVLoader
 import org.opencv.android.Utils
-import org.opencv.core.CvException
-import org.opencv.core.CvType
 import org.opencv.core.Mat
-import org.opencv.core.Scalar
-import org.opencv.imgproc.Imgproc
 import org.opencv.videoio.VideoCapture
 import org.tensorflow.lite.examples.poseestimation.camera.CameraSource
 import org.tensorflow.lite.examples.poseestimation.data.Device
@@ -193,6 +189,20 @@ class MainActivity : AppCompatActivity() {
             mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
         }
 
+        surfaceView.holder.addCallback(object : SurfaceHolder.Callback{
+            override fun surfaceCreated(holder: SurfaceHolder) {
+                processVideo()
+            }
+
+            override fun surfaceChanged(p0: SurfaceHolder, p1: Int, p2: Int, p3: Int) {
+                println("ZAXA surface changed ")
+            }
+
+            override fun surfaceDestroyed(p0: SurfaceHolder) {
+                println("ZAXA surface destroyed ")
+            }
+
+        })
     }
 
     private fun moveFileFromRawToApp(): String {
@@ -225,20 +235,40 @@ class MainActivity : AppCompatActivity() {
         val videoCapture = VideoCapture(absFilePath)
 
         val mat = Mat()
-
+        var readVideo = true
         if(videoCapture.isOpened) {
-            while (true) {
-                if (videoCapture.read(mat)) {
-                    System.out.println("Frame Obtained");
-                    System.out.println("yuhuuuuuuuuuuu width ${mat.width()}, height ${mat.height()}")
-                    val bmp =
-                        Bitmap.createBitmap(mat.width(), mat.height(), Bitmap.Config.ARGB_8888)
-                    Utils.matToBitmap(mat, bmp)
+            while (videoCapture.read(mat) && readVideo) {
+                val bmp = Bitmap.createBitmap(mat.width(), mat.height(), Bitmap.Config.ARGB_8888)
+                Utils.matToBitmap(mat, bmp)
 
-                    val canvas = Canvas()
-                    canvas.setBitmap(bmp)
-                    surfaceView.draw(canvas)
+                val rotateMatrix = Matrix()
+                rotateMatrix.postRotate(90.0f)
+
+                val rotatedBitmap = Bitmap.createBitmap(
+                    bmp, 0, 0, mat.width(), mat.height(),
+                    rotateMatrix, false
+                )
+
+                println("ZAXA Painting on view")
+//                     cameraSource?.processImage(rotatedBitmap)
+
+//                    val bd = BitmapDrawable(this.resources, rotatedBitmap)
+//                    videoView.background = bd
+//                    videoView.invalidate()
+//                    readVideo = false
+
+                rotatedBitmap?.let {
+                    surfaceView.setWillNotDraw(false)
+                    val canvas = surfaceView.holder.lockCanvas()
+                    val destRect = Rect(0, 0, canvas.width, canvas.height)
+                    canvas.let {
+                        println("ZAXA painting on the canvas")
+                        it.drawBitmap(rotatedBitmap, null, destRect, null)
+                        surfaceView.holder.unlockCanvasAndPost(canvas)
+                        readVideo = false
+                    }
                 }
+
             }
 
             Toast.makeText(this, "OpenCV worked", Toast.LENGTH_LONG).show()
@@ -252,7 +282,7 @@ class MainActivity : AppCompatActivity() {
             when (status) {
                 LoaderCallbackInterface.SUCCESS -> {
                     Log.i("OpenCV", "OpenCV loaded successfully")
-                    processVideo()
+
                 }
                 else -> {
                     super.onManagerConnected(status)
@@ -263,7 +293,6 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun processVideo() {
-
 
         val absFilePath = moveFileFromRawToApp()
         openFileByOpenCV(absFilePath)
@@ -288,37 +317,6 @@ class MainActivity : AppCompatActivity() {
             Process.myPid(),
             Process.myUid()
         ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun addVideo() {
-        val path = "android.resource://" + packageName + "/" + R.raw.peso_muerto
-        val uri = Uri.parse(path)
-        val surfaceView = findViewById<SurfaceView>(R.id.surfaceView)
-        val holder = surfaceView.holder
-        val canvas = holder.lockCanvas()
-        holder.addCallback(object : SurfaceHolder.Callback{
-            override fun surfaceCreated(holder: SurfaceHolder) {
-                videoSurface = holder
-                videoPlayer = MediaPlayer.create(applicationContext, uri, videoSurface)
-                videoPlayer.start()
-
-                canvas?.let {
-                    val bitmap = Bitmap.createBitmap(it.width, it.height, Bitmap.Config.RGB_565)
-                    val detectionCanvas = Canvas(bitmap)
-                    surfaceView.draw(detectionCanvas)
-                    cameraSource!!.processImage(bitmap)
-                }
-            }
-
-            override fun surfaceChanged(p0: SurfaceHolder, p1: Int, p2: Int, p3: Int) {
-                println("ZAXA surface changed ")
-            }
-
-            override fun surfaceDestroyed(p0: SurfaceHolder) {
-                println("ZAXA surface destroyed ")
-            }
-
-        })
     }
 
     // open camera

@@ -23,12 +23,12 @@ class SurfaceDrawingExample : Activity() {
         holder = surfaceView.holder
 
 
-        findViewById<Button>(R.id.button_left).setOnClickListener {
+        findViewById<Button>(R.id.button_first).setOnClickListener {
             x -= 100
             paint()
         }
 
-        findViewById<Button>(R.id.button_right).setOnClickListener {
+        findViewById<Button>(R.id.button_second).setOnClickListener {
             x += 100
             paint()
         }
