@@ -15,4 +15,3 @@ dependencyResolutionManagement {
 rootProject.name = "PlatesDetector"
 include ':app'
 include ':openCV'
-include ':sdk'
